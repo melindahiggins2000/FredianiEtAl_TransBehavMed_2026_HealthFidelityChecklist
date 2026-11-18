@@ -1,0 +1,413 @@
+---
+title: "Soccer Fidelity Analysis"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(error = TRUE)
+```
+
+
+```{r}
+
+library(tidyverse) 
+library(data.table) 
+library(Hmisc) 
+library(gtsummary) 
+library(haven) 
+library(readxl) 
+library(irr)
+library(ggplot2)
+library(epiR)
+
+```
+
+```{r}
+df <- read_excel("Fidelity checklist data.xlsx")
+
+# Here is the fidelity data Code
+# Leilany 1
+# Sidd 2
+# Present 1
+# Partially 2
+# Not 3
+# Football 1
+# Health message 2
+
+```
+
+```{r}
+df$Reviewer <- factor(df$Reviewer, levels = c("1", "2"))   
+levels(df$Reviewer) <- c("Reviewer 1", "Reviewer 2")               
+
+df$Session<- factor(df$Session, levels = c("1", "2"))
+levels(df$Session)<- c("Football", "Health Message")
+
+df$presence<- factor(df$presence, levels = c("1", "2", "3"))
+levels(df$presence)<- c("1-Present", "2-Partially Present", "3-Not Present")
+```
+
+## Table 1: Summary Table
+
+For each reviewer, a "Presence" of 1 was given a Fidelity score of 100%, 2 a score of 50% and 3 0%. Where there is a score from more than one reviewer, the scores are averaged.  
+
+```{r}
+df$Fidelity<-ifelse(df$presence=="1-Present", 100, 
+                    ifelse(df$presence=="2-Partially Present", 50, 0))
+
+wide_scores <- df[,-5] %>%
+  pivot_wider(
+    names_from = Reviewer,
+    values_from = Fidelity,
+    names_prefix = "Reviewer"
+  ) %>%
+  mutate(AvgFidelity = rowMeans(select(., starts_with("Reviewer")), na.rm = TRUE))
+
+wide_scores$Session<- factor(wide_scores$Session, levels = c("Football", "Health Message"))
+levels(wide_scores$Session)<- c("Football", "Health Message")
+
+table_variaibles <- wide_scores %>%
+  dplyr::select(
+    AvgFidelity,
+    Session
+  )
+
+table_variaibles %>% tbl_summary(by = Session,                          
+                                 statistic = list(
+                                    all_continuous() ~ "{mean} ({sd})",
+                                    all_categorical() ~ "{n} ({p}%)"
+                                  ),
+                                  digits = all_continuous() ~ 2,
+                                  missing_text = "(Missing)", 
+                                 type = list(AvgFidelity ~ "continuous")) %>%
+                    add_p(test = list(
+                                    all_continuous() ~ "t.test",             
+                                    all_categorical() ~ "chisq.test"),       
+                      pvalue_fun = ~ style_pvalue(.x, digits = 2)) %>%       
+                    add_overall(last = TRUE) %>%                             
+                    modify_header(label ~ "**Variable**") %>%
+                    modify_spanning_header(c("stat_1", "stat_2") ~ "**Session**") %>%   
+                    modify_caption("**Table 1. Average Fidelity by Session**") %>%
+                    separate_p_footnotes() %>%                              
+                    bold_labels()                                            
+```
+
+## Average Fidelity by BCT Number
+
+```{r}
+table_variaibles <- wide_scores %>%
+  dplyr::select(
+    AvgFidelity,
+    `BCT number`
+  )
+
+table_variaibles %>% tbl_summary(by = `BCT number`,                          
+                                 statistic = list(
+                                    all_continuous() ~ "{mean} ({sd})",
+                                    all_categorical() ~ "{n} ({p}%)"
+                                  ),
+                                  digits = all_continuous() ~ 2,
+                                  missing_text = "(Missing)", 
+                                 type = list(AvgFidelity ~ "continuous")) %>%
+                    add_overall(last = TRUE) %>%                             
+                    modify_header(label ~ "**Variable**") %>%
+                    modify_spanning_header(c("stat_1", "stat_2") ~ "**BCT Number**") %>%   
+                    modify_caption("**Table 2. Average Fidelity by BCT Number**") %>%
+                    bold_labels()                                           
+```
+
+## Fidelity for BCT Number by Session Type
+
+```{r}
+table_variables <- wide_scores %>%
+  dplyr::select(
+    AvgFidelity,
+    `BCT number`,
+    Session  
+  )
+
+table_variables %>%
+  tbl_strata(
+    strata = Session,
+    .combined_args = list(modify_caption = "**Table 2. Average Fidelity by BCT Number and Session**"),
+    .header = "**{strata}**",
+    ~ .x %>%
+      tbl_summary(
+        by = `BCT number`,
+        statistic = list(
+          all_continuous() ~ "{mean} ({sd})",
+          all_categorical() ~ "{n} ({p}%)"
+        ),
+        digits = all_continuous() ~ 2,
+        missing_text = "(Missing)",
+        type = list(AvgFidelity ~ "continuous")
+      ) %>%
+      add_overall(last = TRUE) %>%
+      modify_header(label ~ "**Variable**") %>%
+      bold_labels()
+  )
+```
+
+## Fidelity by Week
+
+```{r}
+table_variaibles <- wide_scores %>%
+  dplyr::select(
+    AvgFidelity,
+    Week
+  )
+
+table_variaibles %>% tbl_summary(by = Week,                          
+                                 statistic = list(
+                                    all_continuous() ~ "{mean} ({sd})",
+                                    all_categorical() ~ "{n} ({p}%)"
+                                  ),
+                                  digits = all_continuous() ~ 2,
+                                  missing_text = "(Missing)", 
+                                 type = list(AvgFidelity ~ "continuous")) %>%
+                    add_overall(last = TRUE) %>%                             
+                    modify_header(label ~ "**Variable**") %>%
+                    modify_spanning_header(c("stat_1", "stat_2") ~ "**Week**") %>%   
+                    modify_caption("**Table 2. Average Fidelity by Week**") %>%
+                    bold_labels()                                           
+```
+
+## Fidelity by Week by Session Type
+
+```{r}
+table_variables <- wide_scores %>%
+  dplyr::select(
+    AvgFidelity,
+    Week,
+    Session 
+  )
+
+table_variables %>%
+  tbl_strata(
+    strata = Session,
+    .combined_args = list(modify_caption = "**Table 2. Average Fidelity by Week and Session**"),
+    .header = "**{strata}**",
+    ~ .x %>%
+      tbl_summary(
+        by = Week,
+        statistic = list(
+          all_continuous() ~ "{mean} ({sd})",
+          all_categorical() ~ "{n} ({p}%)"
+        ),
+        digits = all_continuous() ~ 2,
+        missing_text = "(Missing)",
+        type = list(AvgFidelity ~ "continuous")
+      ) %>%
+      add_overall(last = TRUE) %>%
+      modify_header(label ~ "**Variable**") %>%
+      bold_labels()
+  )
+```
+  
+## Cohen's Kappa
+
+### All Sessions
+
+This is a measure of inter-rater reliability. Kappa = 0.908 can be interpreted as Near-Perfect agreement. Note for the methods: Linear weighting was chosen because the rating scale is ordinal. 
+  
+```{r}
+
+ratings_wide <- df %>%
+  select(Reviewer, Week, Session, `BCT number`, presence) %>%
+  pivot_wider(
+    names_from = Reviewer, 
+    values_from = presence
+  ) %>%
+
+  rename(Rater1 = `Reviewer 1`, Rater2 = `Reviewer 2`) %>%
+  drop_na(Rater1, Rater2)
+
+ratings_matrix <- ratings_wide %>% 
+  select(Rater1, Rater2) %>%
+  mutate(across(everything(), as.numeric))
+
+kappa_result <- kappa2(ratings_matrix, weight = "equal")
+print(kappa_result)
+```
+
+### Football
+
+```{r}
+
+ratings_wide <- df[df$Session=="Football",] %>%
+  select(Reviewer, Week, Session, `BCT number`, presence) %>%
+  pivot_wider(
+    names_from = Reviewer, 
+    values_from = presence
+  ) %>%
+  rename(Rater1 = `Reviewer 1`, Rater2 = `Reviewer 2`) %>%
+  drop_na(Rater1, Rater2)
+
+ratings_matrix <- ratings_wide %>% 
+  select(Rater1, Rater2) %>%
+  mutate(across(everything(), as.numeric))
+
+kappa_result <- kappa2(ratings_matrix, weight = "equal")
+print(kappa_result)
+```
+
+### Health Message
+
+```{r}
+
+ratings_wide <- df[df$Session!="Football",] %>%
+  select(Reviewer, Week, Session, `BCT number`, presence) %>%
+  pivot_wider(
+    names_from = Reviewer, 
+    values_from = presence
+  ) %>%
+  rename(Rater1 = `Reviewer 1`, Rater2 = `Reviewer 2`) %>%
+  drop_na(Rater1, Rater2)
+
+ratings_matrix <- ratings_wide %>% 
+  select(Rater1, Rater2) %>%
+  mutate(across(everything(), as.numeric))
+
+kappa_result <- kappa2(ratings_matrix, weight = "equal")
+print(kappa_result)
+```
+
+```{r}
+
+ratings_wide <- df %>%
+  select(Reviewer, Week, Session, `BCT number`, presence) %>%
+  pivot_wider(
+    names_from = Reviewer, 
+    values_from = presence
+  ) %>%
+  rename(Rater1 = `Reviewer 1`, Rater2 = `Reviewer 2`) %>%
+  drop_na(Rater1, Rater2)
+
+ratings_matrix <- ratings_wide %>% 
+  select(Rater1, Rater2) %>%
+  mutate(across(everything(), as.numeric))
+
+conf_matrix <- table(Rater1 = ratings_matrix$Rater1, Rater2 = ratings_matrix$Rater2)
+
+conf_df <- as.data.frame(conf_matrix)
+
+ggplot(conf_df, aes(x = Rater1, y = Rater2, fill = Freq)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), color = "white", size = 6) +
+  scale_fill_gradient(low = "#f7fbff", high = "#08306b") +
+  labs(title = "Reviewer Agreement Heatmap",
+       subtitle = "Diagonal cells show agreement; off-diagonal show disagreement",
+       x = "Reviewer 1 Rating",
+       y = "Reviewer 2 Rating") +
+  theme_minimal()
+```
+
+```{r}
+
+ratings_clean <- ratings_wide %>%
+  mutate(across(c(Rater1, Rater2), ~ as.numeric(gsub("[^0-9]", "", .))))
+
+conf_df_session <- ratings_clean %>%
+  group_by(Session, Rater1, Rater2) %>%
+  tally(name = "Freq") %>%
+  ungroup()
+
+ggplot(conf_df_session, aes(x = factor(Rater1), y = factor(Rater2), fill = Freq)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), color = "white", size = 5) +
+  scale_fill_gradient(low = "#f7fbff", high = "#08306b") +
+  facet_wrap(~ Session) +
+  labs(title = "Reviewer Agreement Heatmap by Session",
+       subtitle = "Comparing rating distributions between Session types",
+       x = "Reviewer 1 Rating",
+       y = "Reviewer 2 Rating",
+       fill = "Count") +
+  theme_minimal() +
+  theme(panel.grid = element_blank())
+
+```
+
+## Prevalence-Adjusted Bias-Adjusted Kappa by Session over Time
+
+```{r}
+
+ratings_clean <- ratings_wide %>%
+  mutate(across(c(Rater1, Rater2), ~ as.numeric(gsub("[^0-9]", "", .))))
+
+calc_pabak <- function(r1, r2) {
+  tryCatch({
+    levs <- c(1, 2, 3) 
+    tab <- table(factor(r1, levels = levs), factor(r2, levels = levs))
+    res <- epi.kappa(tab)
+    return(res$pabak$est)
+  }, error = function(e) return(NA))
+}
+
+kappa_data <- ratings_clean %>%
+  group_by(Week, Session) %>%
+  summarise(
+    kappa_score = calc_pabak(Rater1, Rater2), 
+    .groups = "drop"
+  )
+
+print(kappa_data)
+
+ggplot(kappa_data, aes(x = Week, y = kappa_score, color = factor(Session), group = Session)) +
+  geom_line(linewidth = 1, na.rm = TRUE) + 
+  geom_point(size = 3, na.rm = TRUE) +
+  geom_hline(yintercept = 0.60, linetype = "dashed", color = "black", alpha = 0.5) +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
+  scale_x_continuous(breaks = unique(kappa_data$Week)) +
+  labs(title = "Inter-rater Agreement (PABAK) by Week and Session",
+       subtitle = "Prevalence-Adjusted; Corrected for categorical text",
+       x = "Week",
+       y = "PABAK Score",
+       color = "Session") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+
+ratings_with_fidelity <- df %>%
+  group_by(Week, Session, `BCT number`, Reviewer) %>%
+  summarise(
+    presence = first(presence), 
+    Fidelity = mean(Fidelity, na.rm = TRUE), 
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from = Reviewer, 
+    values_from = presence
+  ) %>%
+  rename(Rater1 = `Reviewer 1`, Rater2 = `Reviewer 2`) %>%
+  drop_na(Rater1, Rater2) %>%
+  mutate(across(c(Rater1, Rater2), ~ as.numeric(gsub("[^0-9]", "", .))))
+
+session_analysis <- ratings_with_fidelity %>%
+  group_by(Week, Session) %>%
+  dplyr::summarize(   # <--- Add 'dplyr::' here
+    Avg_Fidelity = mean(Fidelity, na.rm = TRUE),
+    Agreement_PABAK = calc_pabak(Rater1, Rater2),
+    .groups = "drop"
+  )
+
+
+ggplot(session_analysis, aes(x = Week, y = Avg_Fidelity, color = Session, group = Session)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(title = "Average Fidelity by Week",
+       subtitle = "Football vs. Health Message delivery quality",
+       y = "Fidelity Score (%)",
+       x = "Study Week") +
+  theme_minimal()
+```
+
+
