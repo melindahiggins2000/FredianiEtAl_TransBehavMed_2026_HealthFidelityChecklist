@@ -23,7 +23,8 @@ Knitting the file produces a single HTML report.
 
 ### DATA KEY
 
-|-----------|-----------------------------------|
+| Variable Name | Values Explained |
+|:----------|:----------------------------------|
 | Reviewer  | 1 or 2 |
 | Session   | 1 = Football, 2 = Health Message |
 | BCT number | identifier for the behavior change technique |
