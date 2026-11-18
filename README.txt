@@ -9,8 +9,8 @@ Knitting the file produces a single HTML report.
 
 CONTENTS
 Fidelity checklist data.xlsx (data)
-reproducable_code.Rmd (Rmarkdown)
-reproducable_code.html (knitted document)
+reproducible_code.Rmd (Rmarkdown)
+reproducible_code.html (knitted document)
 
 DATA KEY
   Reviewer    1 or 2
