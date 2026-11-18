@@ -2,6 +2,8 @@
 
 Repository Description: R Code and Data for Paper: Applying and refining the 11 for Health fidelity checklist: treatment delivery of the 11 for Health programme in a US after-school setting; by J. Frediani et.al. in Translational Behavioral Medicine submitted in 2026
 
+[![DOI](https://zenodo.org/badge/1463171267.svg)](https://doi.org/10.5281/zenodo.24352007)
+
 ## README.TXT Content
 
 ### FIDELITY ANALYSIS
